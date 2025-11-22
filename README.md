@@ -1,4 +1,3 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/Rg_jAaUR)
 
 <!-- README.md is generated from README.Rmd. Please edit the README.Rmd file -->
 
@@ -17,3 +16,59 @@ you are done with your submission.
 # Lab 4: Scraping (into) the Hall of Fame
 
 ![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
+# fix header row
+data2025 <- raw2025
+actual_col_names <- as.character(data2025[1, ])
+colnames(data2025) <- actual_col_names
+data2025 <- data2025[-1, ]          # drop header row
+
+# NEW: make all column names unique & syntactically valid
+names(data2025) <- make.names(names(data2025), unique = TRUE)
+
+# now Rk, Name, YoB, Votes still exist;
+# the "%vote" column has become X.vote
+
+# keep only real player rows
+data2025 <- data2025 %>% 
+  filter(!is.na(Rk), Rk != "", Name != "")
+
+# clean types
+data2025 <- data2025 %>% 
+  mutate(
+    Votes = parse_number(Votes),
+    pct   = parse_number(X.vote),  # was `%vote`
+    YoB   = parse_number(YoB)
+  )
+
+# build a HallOfFame-shaped data frame for 2025
+ballots_2025 <- 394
+needed_2025  <- 296
+
+hof2025 <- data2025 %>% 
+  transmute(
+    playerID    = NA_character_,
+    yearID      = 2025L,
+    votedBy     = "BBWAA",
+    ballots     = ballots_2025,
+    needed      = needed_2025,
+    votes       = Votes,
+    inducted    = if_else(Votes >= needed_2025, "Y", "N"),
+    category    = "Player",
+    needed_note = NA_character_
+  )
+
+
+
+readr::write_csv(hof2025, "HallOfFame_2025.csv")
+
+
+
+
+hof_all <- bind_rows(hof, hof2025)
+
+hof_all <- hof %>% 
+  filter(!(yearID == 2025 & votedBy == "BBWAA" & category == "Player")) %>% 
+  bind_rows(hof2025)
+```
