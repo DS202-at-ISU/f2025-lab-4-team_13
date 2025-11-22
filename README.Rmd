@@ -96,10 +96,9 @@ readr::write_csv(hof2025, "HallOfFame_2025.csv")
 
 hof_all <- bind_rows(hof, hof2025)
 
-hof_all %>% 
-  ggplot(aes(x = yearID, fill = inducted)) +
-  geom_bar() +
-  xlim(c(1936, 2025))
+hof_all <- hof %>% 
+  filter(!(yearID == 2025 & votedBy == "BBWAA" & category == "Player")) %>% 
+  bind_rows(hof2025)
 
 
 ```
