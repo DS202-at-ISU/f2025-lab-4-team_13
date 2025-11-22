@@ -70,22 +70,27 @@ data2025 <- data2025 %>%
     YoB   = parse_number(YoB)
   )
 
-# build a HallOfFame-shaped data frame for 2025
+# build a 2025 data frame that includes player names
 ballots_2025 <- 394
 needed_2025  <- 296
 
 hof2025 <- data2025 %>% 
-  transmute(
-    playerID    = NA_character_,
+  mutate(
     yearID      = 2025L,
     votedBy     = "BBWAA",
     ballots     = ballots_2025,
     needed      = needed_2025,
-    votes       = Votes,
     inducted    = if_else(Votes >= needed_2025, "Y", "N"),
     category    = "Player",
     needed_note = NA_character_
-  )
+  ) %>% 
+  # rename to nice lower-case names for the CSV
+  rename(
+    name  = Name,
+    votes = Votes
+  ) %>% 
+  # choose the columns & order you want in the CSV
+  select(name, yearID, votedBy, ballots, needed, votes, inducted, category, needed_note)
 
 
 
