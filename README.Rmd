@@ -52,7 +52,6 @@ actual_col_names <- as.character(data2025[1, ])
 colnames(data2025) <- actual_col_names
 data2025 <- data2025[-1, ]          # drop header row
 
-# NEW: make all column names unique & syntactically valid
 names(data2025) <- make.names(names(data2025), unique = TRUE)
 
 # now Rk, Name, YoB, Votes still exist;
