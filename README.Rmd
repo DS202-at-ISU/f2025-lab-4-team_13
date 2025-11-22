@@ -6,7 +6,15 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(Lahman)
 library(tidyverse)
+library(rvest)
+library(readr)
+
+url  <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+html <- read_html(url)
+tables <- html_table(html, fill = TRUE)
+raw2025 <- tables[[1]]
 ```
 
 # Lab report #4 - instructions
@@ -28,4 +36,70 @@ hof %>%
     data = hof %>% filter(inducted=="Y")) +
   xlim(c(2000, 2022)) +
   ylab("Percent of votes")
+```
+
+
+
+
+
+
+```{r, message=FALSE}
+
+
+# fix header row
+data2025 <- raw2025
+actual_col_names <- as.character(data2025[1, ])
+colnames(data2025) <- actual_col_names
+data2025 <- data2025[-1, ]          # drop header row
+
+# NEW: make all column names unique & syntactically valid
+names(data2025) <- make.names(names(data2025), unique = TRUE)
+
+# now Rk, Name, YoB, Votes still exist;
+# the "%vote" column has become X.vote
+
+# keep only real player rows
+data2025 <- data2025 %>% 
+  filter(!is.na(Rk), Rk != "", Name != "")
+
+# clean types
+data2025 <- data2025 %>% 
+  mutate(
+    Votes = parse_number(Votes),
+    pct   = parse_number(X.vote),  # was `%vote`
+    YoB   = parse_number(YoB)
+  )
+
+# build a HallOfFame-shaped data frame for 2025
+ballots_2025 <- 394
+needed_2025  <- 296
+
+hof2025 <- data2025 %>% 
+  transmute(
+    playerID    = NA_character_,
+    yearID      = 2025L,
+    votedBy     = "BBWAA",
+    ballots     = ballots_2025,
+    needed      = needed_2025,
+    votes       = Votes,
+    inducted    = if_else(Votes >= needed_2025, "Y", "N"),
+    category    = "Player",
+    needed_note = NA_character_
+  )
+
+
+
+readr::write_csv(hof2025, "HallOfFame_2025.csv")
+
+
+
+
+hof_all <- bind_rows(hof, hof2025)
+
+hof_all %>% 
+  ggplot(aes(x = yearID, fill = inducted)) +
+  geom_bar() +
+  xlim(c(1936, 2025))
+
+
 ```
