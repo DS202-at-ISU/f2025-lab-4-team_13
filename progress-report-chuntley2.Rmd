@@ -1,0 +1,118 @@
+---
+title: "progress-report-chuntley2.Rmd"
+output: html_document
+date: "2025-11-24"
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Lahman)
+library(tidyverse)
+library(rvest)
+library(readr)
+
+url  <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+page <- read_html(url)
+tables <- page %>% html_table(fill = TRUE)
+
+head(HallOfFame)
+
+
+#A lot of changes need to be made in order to get the data into the shape as the HallOfFame data table. We'll need to rename and manipulate many of the variables we have.
+
+df <- tables[[1]]
+
+# Make the first row of values the names of the columns
+colnames(df) <- df[1, ]
+df <- df[-1, ]
+
+df <- df %>% 
+  select(Name, YoB, Votes, `%vote`) %>%
+  mutate(
+    votes = as.integer(Votes),
+    vote_pct = str_remove(`%vote`, "%") %>% as.numeric(),
+    yearID = 2025,
+    votedBy = "BBWAA",
+    category = "Player",
+    needed_note = NA,
+    #In order to make Hall of Fame, must be over 75%
+    inducted = ifelse(vote_pct >= 75, "Y", "N"),
+    
+    # Both listed on Baseball reference page
+    ballots = 394,   
+    needed = 296     
+  )
+
+df <- df %>%
+  separate(Name, into = c("nameFirst","nameLast"), sep = " ", extra = "merge")
+
+clean_name <- function(x) {
+  x %>%
+    str_remove_all("\\.") %>%        # remove periods
+    str_remove_all(" Jr$") %>%       # remove Jr
+    str_remove_all(" Sr$") %>%       # remove Sr
+    str_remove_all(" III$") %>%      # remove III
+    str_remove_all(" II$") %>%       # remove II
+    str_trim() %>%
+    tolower()
+}
+
+df <- df %>%
+  mutate(nameFirst = clean_name(nameFirst),
+         nameLast  = clean_name(nameLast))
+
+people_clean <- People %>%
+  mutate(nameFirst = clean_name(nameFirst),
+         nameLast  = clean_name(nameLast))
+
+
+df <- df %>%
+  mutate(
+    # Detect "X-" prefix
+    is_x = str_detect(nameFirst, "^x-") | str_detect(nameLast, "^x-"),
+    
+    # Remove the "X-" prefix from names for joining
+    nameFirst = str_remove(nameFirst, "^x-"),
+    nameLast  = str_remove(nameLast, "^x-"),
+    
+    # Adjust votes and needed_note for X-entries
+    votes = ifelse(is_x, NA, votes),
+    needed_note = ifelse(is_x, "<5 votes", needed_note)
+  )
+
+df <- df %>%
+  left_join(people_clean %>% select(playerID, nameFirst, nameLast),
+            by = c("nameFirst","nameLast"))
+
+
+
+df <- df %>%
+  select(playerID, yearID, votedBy, ballots, needed, votes, inducted, category, needed_note)
+
+
+#Matches data types with HallOfFame, shouldn't actually change any values
+df <- df %>%
+  mutate(
+    yearID = as.integer(yearID),
+    ballots = as.double(ballots),
+    needed = as.double(needed),
+    votes = as.double(votes),
+    inducted = factor(inducted, levels = c("Y","N")),
+    category = factor(category),
+    needed_note = as.character(needed_note)
+  )
+
+
+
+lahman_2025 <- HallOfFame %>% filter(yearID == 2025)
+
+# Keep only BBWAA rows (drop Classic Baseball Era)
+lahman_2025 <- lahman_2025 %>% 
+  filter(votedBy == "BBWAA")
+
+unique(lahman_2025$playerID)
+unique(df$playerID)
+#The closest I could get was 5 values off, to get these complete I would probably have to go into both datasets and manually add the playerID's for each of them.
+```
+
+
